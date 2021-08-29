@@ -1,0 +1,53 @@
+{% load static %}
+<html>
+<head></head>
+<body>
+Json
+<script>
+  let newData = [];
+
+	fetch("/static/frontend/lite.json")
+    .then(response => response.json())
+  	.then(json => {
+      let oldData = json;
+      for (let item of oldData) {
+        let newItem = {};
+        newItem.id = item.id;
+        newItem.name = item.name.en;
+        newItem.country = item.country;
+        newItem.lat = item.location.latitude;
+        newItem.long = item.location.longitude;
+        newData.push(newItem);
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(newData, null, 2)], {
+        type: "text/plain"
+      }));
+      a.setAttribute("download", "mini.json");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+	{% comment %} let data = [];
+
+	newData = [];
+
+	for (let item of data) {
+		let newItem;
+		newItem.id = item.id;
+		newItem.name = item.name.en;
+		newData.push(newItem);
+	}
+
+	const a = document.createElement("a");
+	a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], {
+		type: "text/plain"
+	}));
+	a. setAttribute("download", "mini.json");
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a); {% endcomment %}
+</script>
+</body>
+</html>

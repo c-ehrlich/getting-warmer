@@ -28,20 +28,28 @@ class HistoryForCurrentMonth(APIView):
       - stats
         - % of searches where daily avg is higher than monthly avg for 1 year ago
         - % of searches where daily avg is higher than monthly avg for 5 years ago
-        - % of searches where daily avg is higher than monthly avg for 10 years ago
-        - % of searches where daily avg is higher than monthly avg for 20 years ago
-        - % of searches where daily avg is higher than monthly avg for 50 years ago (if available)
+        - % of searches where daily avg > than monthly avg for 10 years ago
+        - % of searches where daily avg > than monthly avg for 20 years ago
+        - % of searches where daily avg > than monthly avg for 50 years ago (if available)
     """
+    # TODO add an extra parameter 'isRandom = false', if it's random we don't even mention that the station is
+    # not the originally intended one
     def get(self, request, latitude, longitude, format=None):
         latitude = float(latitude)
         longitude = float(longitude)
 
+        station = get_nearest_station(latitude, longitude)
+        station_latitude = station['latitude']
+        station_longitude = station['longitude']
+
+        print(station)
+
         # get OpenWeatherMap daily weather for this location
-        weather_today = get_daily_weather_by_coordinates(latitude, longitude)
+        weather_today = get_daily_weather_by_coordinates(station_latitude, station_longitude)
         print(weather_today)
 
         # get meteostat historical weather for this location
-        weather_history = get_monthly_weather_history(latitude, longitude)
+        weather_history = get_monthly_weather_history(station)
         # location = get_nearest_station(lat, long)
 
         # location_dict = location.to_dict('records')[0]
@@ -53,8 +61,6 @@ class HistoryForCurrentMonth(APIView):
         # historical = Monthly(location_dict['wmo'], start, end)
         # historical = historical.fetch()
 
-        weather_history = {}
-
         data = {
             # 'location': location_json,
             'weather_today': weather_today,
@@ -63,4 +69,3 @@ class HistoryForCurrentMonth(APIView):
         }
 
         return Response(data, status=status.HTTP_200_OK)
-

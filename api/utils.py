@@ -1,12 +1,13 @@
 from pandas._libs.tslibs import NaTType
 from gettingwarmer.settings import OPEN_WEATHER_API_KEY
 import json
-from meteostat import Stations
+from meteostat import Stations, Hourly, Daily, Monthly
 from requests import get
 from math import cos, asin, sqrt, pi
 import pandas as pd
 import datetime
 from calendar import monthrange
+import matplotlib.pyplot as plt
 
 
 def distance_between_coordinates(lat1, lon1, lat2, lon2):
@@ -15,7 +16,7 @@ def distance_between_coordinates(lat1, lon1, lat2, lon2):
     """
     p = pi/180
     a = 0.5 - cos((lat2-lat1)*p)/2 + cos(lat1*p) * cos(lat2*p) * (1-cos((lon2-lon1)*p))/2
-    return 12742 * asin(sqrt(a)) #2*R*asin...
+    return round(12742 * asin(sqrt(a)), 1) #2*R*asin...
 
 
 def get_daily_weather_by_coordinates(latitude, longitude):
@@ -66,34 +67,64 @@ def does_station_have_enough_data(station):
             ):
             return 'monthly'
 
-    elif not (
-        type(station['daily_start']) == NaTType or
-        type(station['daily_end']) == NaTType
-        ):
-        if not (
-            station['daily_start'].to_pydatetime().date() > max_start or
-            station['daily_end'].to_pydatetime().date() < min_end
-            ):
-            return 'daily'
+    # elif not (
+    #     type(station['daily_start']) == NaTType or
+    #     type(station['daily_end']) == NaTType
+    #     ):
+    #     if not (
+    #         station['daily_start'].to_pydatetime().date() > max_start or
+    #         station['daily_end'].to_pydatetime().date() < min_end
+    #         ):
+    #         return 'daily'
 
-    elif not (
-        type(station['hourly_start']) == NaTType or
-        type(station['hourly_end']) == NaTType
-        ):
-        if not (
-            station['hourly_start'].to_pydatetime().date() > max_start or
-            station['hourly_end'].to_pydatetime().date() < min_end
-            ):
-            return 'hourly'
+    # elif not (
+    #     type(station['hourly_start']) == NaTType or
+    #     type(station['hourly_end']) == NaTType
+    #     ):
+    #     if not (
+    #         station['hourly_start'].to_pydatetime().date() > max_start or
+    #         station['hourly_end'].to_pydatetime().date() < min_end
+    #         ):
+    #         return 'hourly'
 
     return None
     
 
-def get_monthly_weather_history(latitude, longitude):
-    # get nearest meteostat station
-    location = get_nearest_station(latitude, longitude)
-    location_dict = location.to_dict('records')[0]
-    # print(location_dict)
+def get_monthly_weather_history(station):
+    now = datetime.datetime.now()
+    start = datetime.datetime(now.year - 20, now.month, 1)
+    end = datetime.datetime(now.year - 1, now.month, monthrange(now.year - 1, now.month)[1])
+
+    # if station['calculation_type'] == 'monthly':
+    #     data = Monthly(station['id'], start, end)
+    # elif station['calculation_type'] == 'daily':
+    #     data = Daily(station['id'], start, end)
+    # else: # station['calculation_type'] == 'hourly'
+    #     data = Hourly(station['id'], start, end)
+
+    data = Monthly(station['id'])
+    data = data.fetch()
+    print(f"MONTHLY - {station['id']}")
+    print(data)
+
+    # data.plot(y=['tavg', 'tmin', 'tmax'])
+    # plt.show()
+
+    # data = Daily(station['id'], start, end)
+    # data = data.fetch()
+    # print("DAILY")
+    # print(data)
+
+    # data = Hourly(station['id'], start, end)
+    # data = data.fetch()
+    # print("HOURLY")
+    # print(data)
+
+    # data = data.aggregate('1M')
+    # data = data.normalize()
+    # data = data.interpolate(limit = 10)
+    # data = data.fetch()
+    # print(data)
 
     return None
 
@@ -116,28 +147,26 @@ def get_nearest_station(latitude, longitude, counter=0):
     """
     stations = Stations()
     stations = stations.nearby(latitude, longitude)
-
     station = stations.fetch(counter + 1)
-
-    print("station", station)
+    print(station)
     location = station.to_dict('records')[counter]
-    print(f"{location['name']}, {location['country']}")
 
-    print(does_station_have_enough_data(location))
-
-    if not does_station_have_enough_data(location):
+    calculation_type = does_station_have_enough_data(location)
+    if not calculation_type:
         return get_nearest_station(latitude, longitude, counter + 1)
 
-    print(station)
-
+    print(f"{location['name']}, {location['country']}")
 
     # calculate distance
     lat2 = float(location['latitude'])
     lon2 = float(location['longitude'])
     distance = distance_between_coordinates(latitude, longitude, lat2, lon2)
-    print(f"distance: {distance}")
 
-    return station
+    location['id'] = list(station.index)[0]
+    location['distance'] = distance
+    location['calculation_type'] = calculation_type
+
+    return location
 
 
 def get_strings_for_month(month):

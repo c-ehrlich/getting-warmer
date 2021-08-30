@@ -98,7 +98,7 @@ def get_monthly_weather_history(latitude, longitude):
     return None
 
 
-def get_nearest_station(latitude, longitude, radius=None):
+def get_nearest_station(latitude, longitude, counter=0):
     """
     Gets the nearest weather station from the Meteostat API
     input: 
@@ -115,44 +115,27 @@ def get_nearest_station(latitude, longitude, radius=None):
         otherwise the nearest station will be returned no matter now "not near" it is)
     """
     stations = Stations()
-    stations = stations.nearby(latitude, longitude, radius)
-    counter = 1
+    stations = stations.nearby(latitude, longitude)
 
-    while True:
-        station = stations.fetch(counter)
-        if not station.empty:
-            print("station", station)
-            location = station.to_dict('records')[0]
-            print(f"{location['name']}, {location['country']}")
-            print(f"monthly: {location['monthly_start']} - {location['monthly_end']}")
-            print(f"daily: {location['daily_start']} - {location['daily_end']}")
-            print(f"hourly: {location['hourly_start']} - {location['hourly_end']}")
-            print(f"as datetime {location['monthly_start'].to_pydatetime()}")
-            print(type(location['monthly_start'].to_pydatetime()))
-            # if location['monthly_start'] == "NaT":
-            #     print("is NaT")
-            # if type(location['monthly_start']) == NaTType:
-            #     print("is NaTType")
-            print(does_station_have_enough_data(location))
+    station = stations.fetch(counter + 1)
+
+    print("station", station)
+    location = station.to_dict('records')[counter]
+    print(f"{location['name']}, {location['country']}")
+
+    print(does_station_have_enough_data(location))
+
+    if not does_station_have_enough_data(location):
+        return get_nearest_station(latitude, longitude, counter + 1)
+
+    print(station)
 
 
-
-            # calculate distance
-            lat2 = float(location['latitude'])
-            lon2 = float(location['longitude'])
-            distance = distance_between_coordinates(latitude, longitude, lat2, lon2)
-            print(f"distance: {distance}")
-
-            print(type(location['monthly_start']))
-            break
-            # location = station.to_dict('station')[0]
-            # print(location['monthly_start'])
-            # print(location['monthly_end'])
-            # location = station.to_dict('records')[0]
-            # location = station.to_json()
-            # print(type(location))
-            # location_json = json.dumps(location)
-            # print(location_json)
+    # calculate distance
+    lat2 = float(location['latitude'])
+    lon2 = float(location['longitude'])
+    distance = distance_between_coordinates(latitude, longitude, lat2, lon2)
+    print(f"distance: {distance}")
 
     return station
 

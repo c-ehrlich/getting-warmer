@@ -1,8 +1,12 @@
+from pandas._libs.tslibs import NaTType
 from gettingwarmer.settings import OPEN_WEATHER_API_KEY
 import json
 from meteostat import Stations
 from requests import get
 from math import cos, asin, sqrt, pi
+import pandas as pd
+import datetime
+from calendar import monthrange
 
 
 def distance_between_coordinates(lat1, lon1, lat2, lon2):
@@ -16,7 +20,7 @@ def distance_between_coordinates(lat1, lon1, lat2, lon2):
 
 def get_daily_weather_by_coordinates(latitude, longitude):
     """
-    Connects to OpenWeatherMap API to get the current weather for a given location
+    Connects to OpenWeatherMap API to get the current weather for a given location.
     
     inputs
       - latitude coordinate (Integer or Float)
@@ -40,31 +44,50 @@ def get_daily_weather_by_coordinates(latitude, longitude):
 
 def does_station_have_enough_data(station):
     """
-    Check if a station has enough data to use it for past weather data calculations
-    And returns either 'monthly', 'daily', or 'hourly' depending on which dataset needs to be used
+    Check if a station has enough data to use it for past weather data calculations (at least 20 years back)
+    And returns either 'monthly', 'daily', or 'hourly' depending on which dataset needs to be used.
+    If none of the data sets are sufficient, None is returned, indicating that we should find a different station
+
+    We prefer using monthly data because it requires the least processing
+
+    Using nested ifs because NatType and datetime objects will be changed to be noncomparable soon
     """
-    pass
-    # if monthly start is not null 
-    # and monthly end is not null 
-    # and monthly start is current month 20 years ago or older
-    # and monthly end is current month of last year or newer
-        # return 'monthly'
+    now = datetime.datetime.now()
+    max_start = datetime.date(now.year - 20, now.month, 1)
+    min_end = datetime.date(now.year - 1, now.month, monthrange(now.year - 1, now.month)[1])
 
-    # if daily start is not null
-    # and daily end is not null
-    # and daily start is 1st of current month 20 years ago or older
-    # and daily end is 31st of current month last year or newer
-        # return 'daily'
+    if not (
+        type(station['monthly_start']) == NaTType or
+        type(station['monthly_end']) == NaTType
+        ):
+        if not (
+            station['monthly_start'].to_pydatetime().date() > max_start or
+            station['monthly_end'].to_pydatetime().date() < min_end
+            ):
+            return 'monthly'
 
-    # if hourly start is not null
-    # and hourly end is not null
-    # and hourly start is 00:00 of current month 20 years ago or older
-    # and hourly end is 23:00 of current month last year or newer
-        # return 'hourly'
+    elif not (
+        type(station['daily_start']) == NaTType or
+        type(station['daily_end']) == NaTType
+        ):
+        if not (
+            station['daily_start'].to_pydatetime().date() > max_start or
+            station['daily_end'].to_pydatetime().date() < min_end
+            ):
+            return 'daily'
+
+    elif not (
+        type(station['hourly_start']) == NaTType or
+        type(station['hourly_end']) == NaTType
+        ):
+        if not (
+            station['hourly_start'].to_pydatetime().date() > max_start or
+            station['hourly_end'].to_pydatetime().date() < min_end
+            ):
+            return 'hourly'
 
     return None
     
-
 
 def get_monthly_weather_history(latitude, longitude):
     # get nearest meteostat station
@@ -101,9 +124,18 @@ def get_nearest_station(latitude, longitude, radius=None):
             print("station", station)
             location = station.to_dict('records')[0]
             print(f"{location['name']}, {location['country']}")
-            print(f"hourly: {location['hourly_start']} - {location['hourly_end']}")
-            print(f"daily: {location['daily_start']} - {location['daily_end']}")
             print(f"monthly: {location['monthly_start']} - {location['monthly_end']}")
+            print(f"daily: {location['daily_start']} - {location['daily_end']}")
+            print(f"hourly: {location['hourly_start']} - {location['hourly_end']}")
+            print(f"as datetime {location['monthly_start'].to_pydatetime()}")
+            print(type(location['monthly_start'].to_pydatetime()))
+            # if location['monthly_start'] == "NaT":
+            #     print("is NaT")
+            # if type(location['monthly_start']) == NaTType:
+            #     print("is NaTType")
+            print(does_station_have_enough_data(location))
+
+
 
             # calculate distance
             lat2 = float(location['latitude'])
